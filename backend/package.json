@@ -1,0 +1,36 @@
+{
+  "name": "timetable-extractor-backend",
+  "version": "1.0.0",
+  "description": "Backend API for extracting structured timetable data from teacher schedules",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "test": "echo \"Tests will be added\" && exit 0"
+  },
+  "keywords": [
+    "timetable",
+    "extraction",
+    "ocr",
+    "llm",
+    "claude"
+  ],
+  "author": "Rituraj Ratan <riturajratan@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.1",
+    "express": "^4.18.2",
+    "multer": "^1.4.5-lts.1",
+    "pdf-parse": "^1.1.1",
+    "tesseract.js": "^5.0.4",
+    "sharp": "^0.33.2",
+    "dotenv": "^16.4.1",
+    "zod": "^3.22.4",
+    "winston": "^3.11.0",
+    "cors": "^2.8.5"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
