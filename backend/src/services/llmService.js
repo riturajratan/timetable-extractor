@@ -1,11 +1,10 @@
-import Anthropic from '@anthropic-ai/sdk';
+import OpenAI from 'openai';
 import { config } from '../config/index.js';
 import logger from '../utils/logger.js';
-import fs from 'fs/promises';
 
-// Initialize Anthropic client
-const anthropic = config.anthropicApiKey
-  ? new Anthropic({ apiKey: config.anthropicApiKey })
+// Initialize OpenAI client
+const openai = config.openaiApiKey
+  ? new OpenAI({ apiKey: config.openaiApiKey })
   : null;
 
 // System prompt for timetable extraction
@@ -25,7 +24,12 @@ Important guidelines:
 - If times are ambiguous, use your best judgment
 - Preserve all original text (don't translate or modify subject names)
 - If you can't determine something, use null
-- Include ALL blocks you can identify, even small ones like "Registration"`;
+- Include ALL blocks you can identify, even small ones like "Registration"
+- IMPORTANT: Text may be written vertically or with spaces between letters (e.g. "B R E A K" or "L U N C H" or "H O M E")
+- When you see spaced letters like "B R E A K", combine them into "Break"
+- Common vertical/spaced words: BREAK, LUNCH, HOME, STORYTIME - these are usually break periods
+- Classify activities like Break, Lunch, Home Time, Story Time as subject_type: "break"
+- Classify Registration, Assembly as subject_type: "administrative"`;
 
 // Example output format in the prompt
 const EXAMPLE_OUTPUT = {
@@ -53,21 +57,37 @@ const EXAMPLE_OUTPUT = {
       subject_type: 'academic',
       notes: null,
     },
+    {
+      day: 'Monday',
+      start_time: '10:30',
+      end_time: '10:45',
+      subject: 'Break',
+      subject_type: 'break',
+      notes: null,
+    },
+    {
+      day: 'Monday',
+      start_time: '12:00',
+      end_time: '13:00',
+      subject: 'Lunch',
+      subject_type: 'break',
+      notes: null,
+    },
   ],
 };
 
 /**
- * Extract timetable data using Claude's vision capabilities
+ * Extract timetable data using GPT-4 Vision capabilities
  * @param {Buffer} imageBuffer - Image file buffer
  * @param {string} mimeType - Image MIME type
  * @returns {Promise<Object>} Extracted timetable data
  */
 export async function extractWithVision(imageBuffer, mimeType) {
-  if (!anthropic) {
-    throw new Error('Anthropic API key not configured');
+  if (!openai) {
+    throw new Error('OpenAI API key not configured');
   }
 
-  logger.info('Starting Claude vision extraction', { mimeType });
+  logger.info('Starting GPT-4 Vision extraction', { mimeType });
 
   const base64Image = imageBuffer.toString('base64');
 
@@ -89,26 +109,29 @@ Now extract from the provided image:`;
   try {
     const startTime = Date.now();
 
-    const message = await anthropic.messages.create({
+    const response = await openai.chat.completions.create({
       model: config.llm.model,
       max_tokens: config.llm.maxTokens,
       temperature: config.llm.temperature,
-      system: SYSTEM_PROMPT,
+      response_format: { type: 'json_object' },
       messages: [
+        {
+          role: 'system',
+          content: SYSTEM_PROMPT,
+        },
         {
           role: 'user',
           content: [
             {
-              type: 'image',
-              source: {
-                type: 'base64',
-                media_type: mimeType,
-                data: base64Image,
-              },
-            },
-            {
               type: 'text',
               text: userPrompt,
+            },
+            {
+              type: 'image_url',
+              image_url: {
+                url: `data:${mimeType};base64,${base64Image}`,
+                detail: 'high',
+              },
             },
           ],
         },
@@ -116,33 +139,27 @@ Now extract from the provided image:`;
     });
 
     const processingTime = Date.now() - startTime;
-    logger.info('Claude vision extraction completed', {
+    logger.info('GPT-4 Vision extraction completed', {
       processingTime,
-      inputTokens: message.usage.input_tokens,
-      outputTokens: message.usage.output_tokens,
+      tokensUsed: response.usage.total_tokens,
+      promptTokens: response.usage.prompt_tokens,
+      completionTokens: response.usage.completion_tokens,
     });
 
-    // Extract JSON from response
-    const responseText = message.content[0].text;
-    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-
-    if (!jsonMatch) {
-      logger.error('No JSON found in Claude response', { responseText });
-      throw new Error('Failed to extract JSON from LLM response');
-    }
-
-    const extractedData = JSON.parse(jsonMatch[0]);
+    // Parse JSON response
+    const responseText = response.choices[0].message.content;
+    const extractedData = JSON.parse(responseText);
 
     return {
       data: extractedData,
       metadata: {
         model: config.llm.model,
         processingTime,
-        tokensUsed: message.usage.input_tokens + message.usage.output_tokens,
+        tokensUsed: response.usage.total_tokens,
       },
     };
   } catch (error) {
-    logger.error('Claude vision extraction failed', {
+    logger.error('GPT-4 Vision extraction failed', {
       error: error.message,
       stack: error.stack,
     });
@@ -151,17 +168,17 @@ Now extract from the provided image:`;
 }
 
 /**
- * Extract timetable data from text using Claude
+ * Extract timetable data from text using GPT-4
  * @param {string} text - Extracted text from document
  * @param {Object} options - Additional context
  * @returns {Promise<Object>} Extracted timetable data
  */
 export async function extractFromText(text, options = {}) {
-  if (!anthropic) {
-    throw new Error('Anthropic API key not configured');
+  if (!openai) {
+    throw new Error('OpenAI API key not configured');
   }
 
-  logger.info('Starting Claude text extraction', { textLength: text.length });
+  logger.info('Starting GPT-4 text extraction', { textLength: text.length });
 
   const userPrompt = `Extract the timetable data from this text.
 
@@ -186,12 +203,16 @@ Now extract the timetable data:`;
   try {
     const startTime = Date.now();
 
-    const message = await anthropic.messages.create({
+    const response = await openai.chat.completions.create({
       model: config.llm.model,
       max_tokens: config.llm.maxTokens,
       temperature: config.llm.temperature,
-      system: SYSTEM_PROMPT,
+      response_format: { type: 'json_object' },
       messages: [
+        {
+          role: 'system',
+          content: SYSTEM_PROMPT,
+        },
         {
           role: 'user',
           content: userPrompt,
@@ -200,33 +221,25 @@ Now extract the timetable data:`;
     });
 
     const processingTime = Date.now() - startTime;
-    logger.info('Claude text extraction completed', {
+    logger.info('GPT-4 text extraction completed', {
       processingTime,
-      inputTokens: message.usage.input_tokens,
-      outputTokens: message.usage.output_tokens,
+      tokensUsed: response.usage.total_tokens,
     });
 
-    // Extract JSON from response
-    const responseText = message.content[0].text;
-    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-
-    if (!jsonMatch) {
-      logger.error('No JSON found in Claude response', { responseText });
-      throw new Error('Failed to extract JSON from LLM response');
-    }
-
-    const extractedData = JSON.parse(jsonMatch[0]);
+    // Parse JSON response
+    const responseText = response.choices[0].message.content;
+    const extractedData = JSON.parse(responseText);
 
     return {
       data: extractedData,
       metadata: {
         model: config.llm.model,
         processingTime,
-        tokensUsed: message.usage.input_tokens + message.usage.output_tokens,
+        tokensUsed: response.usage.total_tokens,
       },
     };
   } catch (error) {
-    logger.error('Claude text extraction failed', {
+    logger.error('GPT-4 text extraction failed', {
       error: error.message,
       stack: error.stack,
     });
@@ -238,5 +251,5 @@ Now extract the timetable data:`;
  * Health check for LLM service
  */
 export function isConfigured() {
-  return anthropic !== null;
+  return openai !== null;
 }

@@ -20,6 +20,9 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Serve static files (UI)
+app.use(express.static('public'));
+
 // Request logging
 app.use((req, res, next) => {
   logger.info('Incoming request', {
@@ -57,7 +60,7 @@ const PORT = config.port;
 app.listen(PORT, () => {
   logger.info(`🚀 Timetable Extraction API started on port ${PORT}`);
   logger.info(`📋 Environment: ${config.nodeEnv}`);
-  logger.info(`🤖 LLM Service: ${config.anthropicApiKey ? 'Configured ✓' : 'Not configured ✗'}`);
+  logger.info(`🤖 LLM Service: ${config.openaiApiKey ? 'Configured ✓' : 'Not configured ✗'}`);
   logger.info(`📁 Max file size: ${config.maxFileSize / 1024 / 1024}MB`);
   logger.info(`🔧 OCR enabled: ${config.enableOCR}`);
   logger.info(`👁️  LLM Vision enabled: ${config.enableLLMVision}`);
