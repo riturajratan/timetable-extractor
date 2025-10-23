@@ -3,7 +3,10 @@
   "builds": [
     {
       "src": "backend/src/index.js",
-      "use": "@vercel/node"
+      "use": "@vercel/node",
+      "config": {
+        "maxDuration": 60
+      }
     },
     {
       "src": "backend/public/**",
@@ -13,7 +16,8 @@
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "backend/src/index.js"
+      "dest": "backend/src/index.js",
+      "methods": ["GET", "POST", "OPTIONS"]
     },
     {
       "src": "/(.*\\..+)",
@@ -26,5 +30,11 @@
   ],
   "env": {
     "NODE_ENV": "production"
+  },
+  "functions": {
+    "backend/src/index.js": {
+      "maxDuration": 60,
+      "memory": 1024
+    }
   }
 }
