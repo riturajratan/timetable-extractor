@@ -1,4 +1,3 @@
-import pdfParse from 'pdf-parse';
 import logger from '../utils/logger.js';
 import * as llmService from './llmService.js';
 
@@ -11,6 +10,9 @@ export async function processPDF(fileBuffer) {
   logger.info('Starting PDF processing');
 
   try {
+    // Dynamic import to avoid initialization issues in serverless
+    const pdfParse = (await import('pdf-parse')).default;
+
     // Extract text from PDF
     const startTime = Date.now();
     const pdfData = await pdfParse(fileBuffer);
@@ -65,6 +67,8 @@ export async function processPDF(fileBuffer) {
  */
 export async function hasExtractableText(fileBuffer) {
   try {
+    // Dynamic import to avoid initialization issues in serverless
+    const pdfParse = (await import('pdf-parse')).default;
     const pdfData = await pdfParse(fileBuffer);
     return pdfData.text && pdfData.text.trim().length > 50;
   } catch (error) {
