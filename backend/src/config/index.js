@@ -2,17 +2,26 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+// Detect serverless environment
+const isServerless = process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME;
+
+// In serverless, only support images (PDF processing doesn't work due to pdf-parse issues)
+const defaultFileTypes = isServerless
+  ? 'image/png,image/jpeg'
+  : 'image/png,image/jpeg,application/pdf';
+
 export const config = {
   // Server
   port: process.env.PORT || 3000,
   nodeEnv: process.env.NODE_ENV || 'development',
+  isServerless,
 
   // OpenAI API
   openaiApiKey: process.env.OPENAI_API_KEY,
 
   // File Upload
   maxFileSize: parseInt(process.env.MAX_FILE_SIZE) || 10 * 1024 * 1024, // 10MB default
-  allowedFileTypes: (process.env.ALLOWED_FILE_TYPES || 'image/png,image/jpeg,application/pdf').split(','),
+  allowedFileTypes: (process.env.ALLOWED_FILE_TYPES || defaultFileTypes).split(','),
   uploadDir: './uploads',
 
   // Processing
