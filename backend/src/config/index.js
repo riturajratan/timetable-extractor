@@ -5,10 +5,8 @@ dotenv.config();
 // Detect serverless environment
 const isServerless = process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME;
 
-// In serverless, only support images (PDF processing doesn't work due to pdf-parse issues)
-const defaultFileTypes = isServerless
-  ? 'image/png,image/jpeg'
-  : 'image/png,image/jpeg,application/pdf';
+// Default file types - PDF support re-enabled with workaround
+const defaultFileTypes = 'image/png,image/jpeg,application/pdf';
 
 export const config = {
   // Server

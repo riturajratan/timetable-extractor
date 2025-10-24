@@ -23,19 +23,6 @@ export async function processFile(fileBuffer, mimetype, filename) {
     if (mimetype.startsWith('image/')) {
       result = await imageProcessor.processImage(fileBuffer, mimetype);
     } else if (mimetype === 'application/pdf') {
-      // Check if running in serverless environment
-      const isServerless = process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME;
-
-      if (isServerless) {
-        logger.error('PDF processing disabled in serverless environment');
-        throw {
-          code: 'PDF_NOT_SUPPORTED_SERVERLESS',
-          message: 'PDF processing is not available in the deployed version due to serverless limitations',
-          details:
-            'Please convert your PDF to an image (PNG or JPEG) and upload again. You can use online tools like pdf2image or take a screenshot of the PDF.',
-        };
-      }
-
       result = await pdfProcessor.processPDF(fileBuffer);
     } else {
       throw {
