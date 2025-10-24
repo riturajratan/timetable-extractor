@@ -96,12 +96,26 @@ export async function processImage(fileBuffer, mimeType) {
           extractionMethod: 'claude-vision',
         };
       } catch (visionError) {
-        logger.error('Claude Vision failed, falling back to OCR', {
+        logger.error('Claude Vision failed', {
           error: visionError.message,
         });
 
-        // Fallback to OCR if vision fails
+        // In serverless environments (Vercel), OCR doesn't work due to WASM file access issues
+        // Skip OCR fallback and provide a better error message
+        const isServerless = process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME;
+
+        if (isServerless) {
+          logger.error('Serverless environment detected - OCR fallback disabled');
+          throw {
+            code: 'LLM_EXTRACTION_FAILED',
+            message: visionError.message || 'Failed to extract timetable using AI vision',
+            details: 'Please check your OpenAI API key configuration in Vercel environment variables.',
+          };
+        }
+
+        // Fallback to OCR if vision fails (local development only)
         if (config.enableOCR) {
+          logger.info('Falling back to OCR (local environment)');
           return await extractWithOCR(processedImage);
         }
 
@@ -109,10 +123,18 @@ export async function processImage(fileBuffer, mimeType) {
       }
     }
 
-    // If LLM vision is disabled, use OCR
-    if (config.enableOCR) {
+    // If LLM vision is disabled, use OCR (local development only)
+    const isServerless = process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME;
+
+    if (config.enableOCR && !isServerless) {
       logger.info('LLM Vision disabled, using OCR + text extraction');
       return await extractWithOCR(processedImage);
+    }
+
+    if (isServerless) {
+      throw new Error(
+        'LLM Vision is required for serverless environments. Please configure OPENAI_API_KEY in your Vercel environment variables.'
+      );
     }
 
     throw new Error('No extraction method available. Enable LLM Vision or OCR in configuration.');
