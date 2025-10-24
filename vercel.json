@@ -5,7 +5,8 @@
       "src": "backend/src/index.js",
       "use": "@vercel/node",
       "config": {
-        "maxDuration": 60
+        "maxDuration": 60,
+        "memory": 1024
       }
     },
     {
@@ -30,11 +31,5 @@
   ],
   "env": {
     "NODE_ENV": "production"
-  },
-  "functions": {
-    "backend/src/index.js": {
-      "maxDuration": 60,
-      "memory": 1024
-    }
   }
 }
