@@ -52,7 +52,7 @@ Navigate to: **Settings** → **Environment Variables**
 2. Click the **"..."** menu → **Edit**
 3. Replace with your working key:
    ```
-   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
+   your-new-openai-api-key-here
    ```
 4. **Check all environments**: Production, Preview, Development
 5. Click **Save**
@@ -88,7 +88,7 @@ vercel env rm OPENAI_API_KEY production
 
 # 5. Add new API key (will prompt for value)
 vercel env add OPENAI_API_KEY production
-# When prompted, paste: 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
+# When prompted, paste your new API key from OpenAI
 
 # 6. Redeploy
 vercel --prod
